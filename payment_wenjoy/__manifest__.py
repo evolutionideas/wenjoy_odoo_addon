@@ -5,6 +5,7 @@
     'name': 'Wenjoy Payment Acquirer',
     'version': '1.0.0',
     'license': 'LGPL-3',
+    'author': "Evolution Ideas S.A.S.",
     'images': ['images/main_screenshot.png'],
     'category': 'Accounting/Payment Acquirers',
     'sequence': 365,
