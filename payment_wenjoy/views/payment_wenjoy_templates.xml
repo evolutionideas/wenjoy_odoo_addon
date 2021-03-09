@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="wenjoy_form">
+        <div>
+            <input type="hidden" name="data_set" t-att-data-action-url="tx_url" data-remove-me="" />
+            <input type="hidden" name="total_value" t-att-value='total_value' />
+            <input type="hidden" name="description" t-att-value='description' />
+            <input type="hidden" name="api_key" t-att-value='api_key' />
+            <input type="hidden" name="verify" t-att-value='verify' />
+            <input type="hidden" name="owner_email" t-att-value='owner_email' />
+            <input type="hidden" name="signature" t-att-value='signature' />
+            <input type="hidden" name="owner_first_name" t-att-value='owner_first_name' />
+            <input type="hidden" name="owner_last_name" t-att-value='owner_last_name' />
+            <input type="hidden" name="response_url" t-att-value='response_url' />
+            <input type="hidden" name="confirmation_url" t-att-value='confirmation_url' />
+        </div>
+    </template>
+</odoo>

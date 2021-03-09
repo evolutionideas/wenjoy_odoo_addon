@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="payment_acquirer_wenjoy" model="payment.acquirer">
+            <field name="name">Wenjoy</field>
+            <field name="display_as">Wenjoy</field>
+            <field name="image_128" type="base64" file="payment_wenjoy/static/src/img/wenjoy_logo.png" />
+            <field name="sequence">400</field>
+            <field name="description" type="html">
+                <p>Vende por internet de forma fácil y segura. Implementa un botón de pago en tu E-Commmerce.</p>
+                <ul class="list-inline">
+                    <li class="list-inline-item">
+                        <i class="fa fa-check" />
+                        Credit Card / PSE Payments
+                    </li>
+                    <li class="list-inline-item">
+                        <i class="fa fa-check" />
+                        Split Payments
+                    </li>
+                    <li class="list-inline-item">
+                        <i class="fa fa-check" />
+                        Social Payments
+                    </li>
+                </ul>
+            </field>
+            <field name="provider">wenjoy</field>
+            <field name="company_id" ref="base.main_company" />
+            <field name="view_template_id" ref="wenjoy_form" />
+        </record>
+    </data>
+</odoo>
