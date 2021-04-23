@@ -19,20 +19,19 @@ _logger = logging.getLogger(__name__)
 class PaymentAcquirerWenjoy(models.Model):
     _inherit = 'payment.acquirer'
 
-    provider = fields.Selection(selection_add=[
-        ('wenjoy', 'Wenjoy')
-    ], ondelete={'wenjoy': 'set default'})
+    provider = fields.Selection(selection_add=[('wenjoy', 'Wenjoy')])
 
     wenjoy_api_key = fields.Char(string="Wenjoy Api Key", required_if_provider='wenjoy', groups='base.group_user')
     wenjoy_private_api_key = fields.Char(string="Wenjoy Private Api Key", required_if_provider='wenjoy', groups='base.group_user')
 
+    @api.model
     def _get_wenjoy_urls(self, environment):
         """ Wenjoy URLs"""
         if environment == 'prod':
             return 'https://wenjoy.com.co/api/1.0/pc/post-checkout'
         return 'https://staging.wenjoy.com.co/api/1.0/pc/post-checkout'
 
-    
+    @api.multi
     def _wenjoy_generate_sign(self, values, private):
 
         if private:
@@ -50,7 +49,7 @@ class PaymentAcquirerWenjoy(models.Model):
 
         return hashlib.sha256(str.encode(string_values_signature)).hexdigest()
 
-
+    @api.multi
     def wenjoy_form_generate_values(self, values):
         base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
         tx = self.env['payment.transaction'].search([('reference', '=', values.get('reference'))])
@@ -75,11 +74,10 @@ class PaymentAcquirerWenjoy(models.Model):
 
         return wenjoy_values
 
-
+    @api.multi
     def wenjoy_get_form_action_url(self):
         self.ensure_one()
-        environment = 'prod' if self.state == 'enabled' else 'test'
-        return self._get_wenjoy_urls(environment)
+        return self._get_wenjoy_urls(self.environment)
 
 
 
@@ -93,7 +91,7 @@ class PaymentTransactionWenjoy(models.Model):
         if not reference or not sign or not total_value or not state:
             raise ValidationError(_('Wenjoy: received data with missing reference (%s) or sign (%s)') % (reference, sign))
 
-        transaction = self.search([('reference', '=', reference)])
+        transaction=self.env['payment.transaction'].search([('reference' ,'=' ,reference)])
 
         if not transaction:
             error_msg = (_('Wenjoy: received data for reference %s; no order found') % (reference))
@@ -103,19 +101,19 @@ class PaymentTransactionWenjoy(models.Model):
             raise ValidationError(error_msg)
 
         # -------- Verify Signature HERE
-        sign_check = transaction.acquirer_id._wenjoy_generate_sign(data, True)
+        sign_check = transaction[0].acquirer_id._wenjoy_generate_sign(data, True)
 
         if sign_check != sign:
             raise ValidationError(('invalid sign, received %s, computed %s') % (sign, sign_check))
 
-        return transaction
+        return transaction[0]
     
-
+    @api.multi
     def _wenjoy_form_get_invalid_parameters(self, data):
         invalid_parameters = []
         return invalid_parameters
         
-
+    @api.multi
     def _wenjoy_form_validate(self, data):
         self.ensure_one()
 
