@@ -115,30 +115,20 @@ class PaymentTransactionWenjoy(models.Model):
         
     @api.multi
     def _wenjoy_form_validate(self, data):
-        self.ensure_one()
-
-        status = data.get('purchase_state') or ""
-        res = {
-            'acquirer_reference': data.get('purchase_description') or "",
-            'state_message': data.get('purchase_state') or ""
-        }
+        status = data.get('purchase_state')
+        result = self.write({
+            'acquirer_reference': data.get('purchase_description'),
+            'state_message': data.get('purchase_state'),
+            'date':fields.Datetime.now()
+        })
 
         if status == 'PURCHASE_FINISHED':
-            res.update(state='done', date=fields.Datetime.now())
             self._set_transaction_done()
-            self.write(res)
-            self.execute_callback()
-            return True
         elif status == 'PURCHASE_STARTED':
-            res.update(state='pending')
             self._set_transaction_pending()
-            return self.write(res)
         elif status == 'PURCHASE_REJECTED':
-            res.update(state='cancel')
             self._set_transaction_cancel()
-            return self.write(res)
         else:
-            error = 'Invalid State: %s' % (status)
-            res.update(state='cancel', state_message=error)
-            self._set_transaction_cancel()
-            return self.write(res)
+            self._set_transaction_pending()
+
+        return result
