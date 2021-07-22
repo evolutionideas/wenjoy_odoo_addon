@@ -105,6 +105,29 @@ class PaymentTransactionWenjoy(models.Model):
 
         if sign_check != sign:
             raise ValidationError(('invalid sign, received %s, computed %s') % (sign, sign_check))
+        else:
+            # Resolve Wenjoy TX
+            # Get Transacction And Order
+            _transaction = transaction[0]
+            order_id = self.get_order_id(_transaction.id)
+            _order = self.env["sale.order"].browse(int(order_id))
+
+            # WJ Logic
+            status = state
+
+            if status == 'PURCHASE_FINISHED':
+                _transaction.sudo().update({"state": "done"})
+                _order.sudo().update({'reference':_transaction.reference})
+                _order.sudo().action_confirm()
+                _order.action_quotation_send()
+            elif status == 'PURCHASE_STARTED':
+                _transaction.sudo().update({"state": "pending"})
+                _order.sudo().action_quotation_send()
+                _order.sudo().update({"state": "sent"})
+            elif status == 'PURCHASE_REJECTED':
+                _transaction.sudo().update({"state": "error"})
+            else:
+                pass
 
         return transaction[0]
     
@@ -115,20 +138,17 @@ class PaymentTransactionWenjoy(models.Model):
         
     @api.multi
     def _wenjoy_form_validate(self, data):
-        status = data.get('purchase_state')
         result = self.write({
             'acquirer_reference': data.get('purchase_description'),
             'state_message': data.get('purchase_state'),
             'date':fields.Datetime.now()
         })
-
-        if status == 'PURCHASE_FINISHED':
-            self._set_transaction_done()
-        elif status == 'PURCHASE_STARTED':
-            self._set_transaction_pending()
-        elif status == 'PURCHASE_REJECTED':
-            self._set_transaction_cancel()
-        else:
-            self._set_transaction_pending()
-
         return result
+
+    def get_order_id(self, transaction_id):
+        query = "select * from sale_order_transaction_rel where transaction_id = '" + str(transaction_id) + "'"
+        self.env.cr.execute(query)
+        transactions_rel = self.env.cr.dictfetchone()
+        if("sale_order_id" in transactions_rel):
+            return transactions_rel["sale_order_id"]
+        return None
