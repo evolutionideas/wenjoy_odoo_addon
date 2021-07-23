@@ -51,7 +51,8 @@ class PaymentAcquirerWenjoy(models.Model):
 
     @api.multi
     def wenjoy_form_generate_values(self, values):
-        base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
+        base_url = self.get_base_url()
+
         tx = self.env['payment.transaction'].search([('reference', '=', values.get('reference'))])
 
         if tx.state not in ['done', 'pending']:
