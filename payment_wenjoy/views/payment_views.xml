@@ -9,6 +9,7 @@
                 <group attrs="{'invisible': [('provider', '!=', 'wenjoy')]}">
                     <field name="wenjoy_api_key"/>
                     <field name="wenjoy_private_api_key"/>
+                    <field name="wenjoy_website_url"/>
                 </group>
             </xpath>
         </field>

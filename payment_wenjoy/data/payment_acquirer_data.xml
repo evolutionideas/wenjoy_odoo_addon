@@ -28,6 +28,7 @@
             <field name="view_template_id" ref="wenjoy_form" />
             <field name="wenjoy_api_key">aaa123qwe</field>
             <field name="wenjoy_private_api_key">aaa123qwe</field>
+            <field name="wenjoy_website_url">http://example.com</field>
         </record>
     </data>
 </odoo>

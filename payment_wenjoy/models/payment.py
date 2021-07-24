@@ -23,6 +23,7 @@ class PaymentAcquirerWenjoy(models.Model):
 
     wenjoy_api_key = fields.Char(string="Wenjoy Api Key", required_if_provider='wenjoy', groups='base.group_user')
     wenjoy_private_api_key = fields.Char(string="Wenjoy Private Api Key", required_if_provider='wenjoy', groups='base.group_user')
+    wenjoy_website_url = fields.Char(string="Website base URL (ex: http://example.com)", required_if_provider='wenjoy', groups='base.group_user')
 
     @api.model
     def _get_wenjoy_urls(self, environment):
@@ -51,7 +52,7 @@ class PaymentAcquirerWenjoy(models.Model):
 
     @api.multi
     def wenjoy_form_generate_values(self, values):
-        base_url = self.get_base_url()
+        # base_url = self.get_base_url()
 
         tx = self.env['payment.transaction'].search([('reference', '=', values.get('reference'))])
 
@@ -67,8 +68,8 @@ class PaymentAcquirerWenjoy(models.Model):
             owner_email=values['partner_email'],
             owner_first_name=values['partner_first_name'],
             owner_last_name=values['partner_last_name'],
-            response_url=urls.url_join(base_url, '/payment/wenjoy/response'),
-            confirmation_url=urls.url_join(base_url, '/payment/wenjoy/response'),
+            response_url=urls.url_join(self.wenjoy_website_url, '/payment/wenjoy/response'),
+            confirmation_url=urls.url_join(self.wenjoy_website_url, '/payment/wenjoy/response'),
         )
 
         wenjoy_values['signature'] = self._wenjoy_generate_sign(wenjoy_values, False)
