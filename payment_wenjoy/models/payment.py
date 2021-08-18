@@ -25,6 +25,7 @@ class PaymentAcquirerWenjoy(models.Model):
 
     wenjoy_api_key = fields.Char(string="Wenjoy Api Key", required_if_provider='wenjoy', groups='base.group_user')
     wenjoy_private_api_key = fields.Char(string="Wenjoy Private Api Key", required_if_provider='wenjoy', groups='base.group_user')
+    wenjoy_website_url = fields.Char(string="Website base URL (ex: http://example.com)", required_if_provider='wenjoy', groups='base.group_user')
 
     def _get_wenjoy_urls(self, environment):
         """ Wenjoy URLs"""
@@ -52,7 +53,7 @@ class PaymentAcquirerWenjoy(models.Model):
 
 
     def wenjoy_form_generate_values(self, values):
-        base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
+        # base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
         tx = self.env['payment.transaction'].search([('reference', '=', values.get('reference'))])
 
         if tx.state not in ['done', 'pending']:
@@ -67,8 +68,8 @@ class PaymentAcquirerWenjoy(models.Model):
             owner_email=values['partner_email'],
             owner_first_name=values['partner_first_name'],
             owner_last_name=values['partner_last_name'],
-            response_url=urls.url_join(base_url, '/payment/wenjoy/response'),
-            confirmation_url=urls.url_join(base_url, '/payment/wenjoy/response'),
+            response_url=urls.url_join(self.wenjoy_website_url, '/payment/wenjoy/response'),
+            confirmation_url=urls.url_join(self.wenjoy_website_url, '/payment/wenjoy/response'),
         )
 
         wenjoy_values['signature'] = self._wenjoy_generate_sign(wenjoy_values, False)
@@ -93,7 +94,7 @@ class PaymentTransactionWenjoy(models.Model):
         if not reference or not sign or not total_value or not state:
             raise ValidationError(_('Wenjoy: received data with missing reference (%s) or sign (%s)') % (reference, sign))
 
-        transaction = self.search([('reference', '=', reference)])
+        transaction=self.env['payment.transaction'].search([('reference' ,'=' ,reference)])
 
         if not transaction:
             error_msg = (_('Wenjoy: received data for reference %s; no order found') % (reference))
@@ -103,12 +104,35 @@ class PaymentTransactionWenjoy(models.Model):
             raise ValidationError(error_msg)
 
         # -------- Verify Signature HERE
-        sign_check = transaction.acquirer_id._wenjoy_generate_sign(data, True)
+        sign_check = transaction[0].acquirer_id._wenjoy_generate_sign(data, True)
 
         if sign_check != sign:
             raise ValidationError(('invalid sign, received %s, computed %s') % (sign, sign_check))
+        else:
+            # Resolve Wenjoy TX
+            # Get Transacction And Order
+            _transaction = transaction[0]
+            order_id = self.get_order_id(_transaction.id)
+            _order = self.env["sale.order"].browse(int(order_id))
 
-        return transaction
+            # WJ Logic
+            status = state
+
+            if status == 'PURCHASE_FINISHED':
+                _transaction.sudo().update({"state": "done"})
+                _order.sudo().update({'reference':_transaction.reference})
+                _order.sudo().action_confirm()
+                _order.action_quotation_send()
+            elif status == 'PURCHASE_STARTED':
+                _transaction.sudo().update({"state": "pending"})
+                _order.sudo().action_quotation_send()
+                _order.sudo().update({"state": "sent"})
+            elif status == 'PURCHASE_REJECTED':
+                _transaction.sudo().update({"state": "error"})
+            else:
+                pass
+
+        return transaction[0]
     
 
     def _wenjoy_form_get_invalid_parameters(self, data):
@@ -117,30 +141,17 @@ class PaymentTransactionWenjoy(models.Model):
         
 
     def _wenjoy_form_validate(self, data):
-        self.ensure_one()
-
-        status = data.get('purchase_state') or ""
-        res = {
-            'acquirer_reference': data.get('purchase_description') or "",
-            'state_message': data.get('purchase_state') or ""
-        }
-
-        if status == 'PURCHASE_FINISHED':
-            res.update(state='done', date=fields.Datetime.now())
-            self._set_transaction_done()
-            self.write(res)
-            self.execute_callback()
-            return True
-        elif status == 'PURCHASE_STARTED':
-            res.update(state='pending')
-            self._set_transaction_pending()
-            return self.write(res)
-        elif status == 'PURCHASE_REJECTED':
-            res.update(state='cancel')
-            self._set_transaction_cancel()
-            return self.write(res)
-        else:
-            error = 'Invalid State: %s' % (status)
-            res.update(state='cancel', state_message=error)
-            self._set_transaction_cancel()
-            return self.write(res)
+        result = self.write({
+            'acquirer_reference': data.get('purchase_description'),
+            'state_message': data.get('purchase_state'),
+            'date':fields.Datetime.now()
+        })
+        return result
+    
+    def get_order_id(self, transaction_id):
+        query = "select * from sale_order_transaction_rel where transaction_id = '" + str(transaction_id) + "'"
+        self.env.cr.execute(query)
+        transactions_rel = self.env.cr.dictfetchone()
+        if("sale_order_id" in transactions_rel):
+            return transactions_rel["sale_order_id"]
+        return None
